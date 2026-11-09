@@ -18,7 +18,7 @@ class MLPLM(nn.Module):
         # Init, not any init a super init
         super().__init__()
 
-        # How much context can we get from it, and what is the begginig of sequenve id?
+        # How much context can we get from it, and what is the begginig of sequence id?
         self.context, self.bos_id = context, bos_id
 
         # Create the embeding layer where we look for it in a Lookup
@@ -28,17 +28,17 @@ class MLPLM(nn.Module):
                                  nn.ReLU(),
                                  nn.Linear(d_hidden, vocab_size))
 
-    def _hanle_data(self,Protein_Dataset):
+    def _handle_data(self,Protein_Dataset):
+
         pass
 
     def train():
 
-        _hanle_data
+        _handle_data
         pass
 
     def testing():
 
-        _hanle_data
+        _handle_data
         pass
 
-	hello maxence
