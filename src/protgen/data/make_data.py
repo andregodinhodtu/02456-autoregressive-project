@@ -102,4 +102,6 @@ class ProteinDataset(Dataset):
         return x, x_shifted, label, length
 
     def __repr__(self):
-        return f"ProteinDataset(num_samples={len(self)}, vocab_size={self.vocab_size}, num_classes={len(self.fam_to_idx)}, max_length={self.max_length})"ß
+        return f"ProteinDataset(num_samples={len(self)}, vocab_size={self.vocab_size}, num_classes={len(self.fam_to_idx)}, max_length={self.max_length})"
+
+        
