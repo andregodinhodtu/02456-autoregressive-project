@@ -1,0 +1,8 @@
+# config/model/mlp.yaml
+_target_: protgen.models.mlp.MLPLM   # the class Hydra builds
+
+context: 3      # how many previous tokens the model sees
+stride: 1       # keep at 1: one prediction per position
+d_emb: 32       # embedding size per token
+d_hidden: 256   # hidden layer size
+pad_id: 0       # id of <PAD> in the vocab

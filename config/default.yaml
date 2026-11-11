@@ -1,0 +1,21 @@
+defaults:
+  - model: ???
+  - _self_
+
+seed: 42
+
+data:
+  train: data/train.csv
+  val: data/val.csv
+  test: data/test.csv
+
+train:
+  batch_size: 64
+  lr: 0.001
+  epochs: 10
+
+hydra:
+  run:
+    dir: results/runs/${hydra:runtime.choices.model}/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: results/sweeps/${hydra:runtime.choices.model}/${now:%Y-%m-%d_%H-%M-%S}

@@ -43,7 +43,8 @@ class MLPLM(nn.Module):
         # Let's make windows of out context size
         # First argument is dimensions in which unfolds, I am just scared that
         # it might not be that one for batching but let's try it
-        windows = x.unfold(0, self.context, self.stride_mlp) 
+        # -1 to work with multiple intputs
+        windows = x.unfold(-1, self.context, self.stride_mlp) 
         if debug: print(windows)
         if debug: print(f"Lenght of the sequence: {len(windows)}")
 
@@ -53,7 +54,8 @@ class MLPLM(nn.Module):
         if debug: print(f"Lenght of the sequence: {embedings.shape}")
 
         # We flatten the emebdings so that they can go into the network
-        flat_embedings = torch.flatten(embedings, start_dim=1)
+        # -2 to work with multiple intputs
+        flat_embedings = torch.flatten(embedings, start_dim=-2)
         if debug: print(flat_embedings)
         if debug: print(f"Lenght of the sequence: {flat_embedings.shape}")
 
