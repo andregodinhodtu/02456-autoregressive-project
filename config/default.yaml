@@ -1,5 +1,6 @@
 defaults:
   - model: ???
+  - optimizer: adam
   - _self_
 
 seed: 42
@@ -11,7 +12,6 @@ data:
 
 train:
   batch_size: 64
-  lr: 0.001
   epochs: 10
 
 hydra:
