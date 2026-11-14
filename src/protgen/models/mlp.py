@@ -32,13 +32,15 @@ class MLPLM(nn.Module):
 
     def forward(self, seq, debug = False):
 
+        seq = torch.as_tensor(seq, dtype=torch.long, device=self.emb.weight.device)
+
         if debug: print(seq)
-        if debug: print(f"Lenght of the sequence: {len(seq)}")
+        if debug: print(f"Lenght of the sequence: {seq.shape}")
             
         # Padding
         x = F.pad(seq, (self.context - 1, 0), value=self.pad_id) 
         if debug: print(x)
-        if debug: print(f"Lenght of the sequence: {len(x)}")
+        if debug: print(f"Lenght of the sequence: {x.shape}")
 
         # Let's make windows of out context size
         # First argument is dimensions in which unfolds, I am just scared that
@@ -46,7 +48,7 @@ class MLPLM(nn.Module):
         # -1 to work with multiple intputs
         windows = x.unfold(-1, self.context, self.stride_mlp) 
         if debug: print(windows)
-        if debug: print(f"Lenght of the sequence: {len(windows)}")
+        if debug: print(f"Lenght of the sequence: {windows.shape}")
 
         # Embed each token
         embedings = self.emb(windows)
@@ -60,5 +62,3 @@ class MLPLM(nn.Module):
         if debug: print(f"Lenght of the sequence: {flat_embedings.shape}")
 
         return self.net(flat_embedings)
-
-        # looking into the cross entropy loss function, logits or softmax outputs 

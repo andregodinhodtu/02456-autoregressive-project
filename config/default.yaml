@@ -1,6 +1,7 @@
 defaults:
   - model: ???
   - optimizer: adam
+  - loss_fn: cross_entropy
   - _self_
 
 seed: 42
