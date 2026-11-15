@@ -14,9 +14,14 @@ data:
 train:
   batch_size: 64
   epochs: 10
+  val_every_step: 50
 
 hydra:
   run:
     dir: results/runs/${hydra:runtime.choices.model}/${now:%Y-%m-%d_%H-%M-%S}
   sweep:
     dir: results/sweeps/${hydra:runtime.choices.model}/${now:%Y-%m-%d_%H-%M-%S}
+  job_logging:
+    formatters:
+      simple:
+        format: "%(message)s"
