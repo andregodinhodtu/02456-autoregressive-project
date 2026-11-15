@@ -20,7 +20,8 @@ hydra:
   run:
     dir: results/runs/${hydra:runtime.choices.model}/${now:%Y-%m-%d_%H-%M-%S}
   sweep:
-    dir: results/sweeps/${hydra:runtime.choices.model}/${now:%Y-%m-%d_%H-%M-%S}
+    dir: results/sweeps/${now:%Y-%m-%d_%H-%M-%S}
+    subdir: ${hydra.job.override_dirname}
   job_logging:
     formatters:
       simple:
