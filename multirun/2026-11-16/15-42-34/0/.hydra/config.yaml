@@ -1,6 +1,0 @@
-trained_model:
-  name: example
-data:
-  test: data/test.csv
-test:
-  batch_size: 64
