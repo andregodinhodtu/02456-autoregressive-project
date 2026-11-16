@@ -59,8 +59,8 @@ def main(cfg: DictConfig):
 
     # Loss function definition
     log.info("\n" +"-"*20 + "LOSS FUNCTION" + "-"*20 + "\n")
-    loss_fn = instantiate(cfg.loss_fn, ignore_index=IGNORE_INDEX)
-    log.info(f"{loss_fn}, ignoring index: {IGNORE_INDEX}")
+    loss_fn_sum = instantiate(cfg.loss_fn, ignore_index=IGNORE_INDEX, reduction="sum")
+    log.info(f"{loss_fn_sum}, ignoring index: {IGNORE_INDEX}")
 
     # Shape check
     log.info("\n" +"-"*20 + "SHAPE CHECK" + "-"*20 + "\n")
@@ -68,7 +68,11 @@ def main(cfg: DictConfig):
     x, y = x.to(device), y.to(device)
     logits = model(x)
     log.info(f"Shape check x: {x.shape}, y: {y.shape}, output of the model (logits): {logits.shape}")
-    loss = loss_fn(logits.transpose(1,2), y)
+    total_loss, total_tokens = 0.0, 0
+    total_loss += loss_fn_sum(logits.transpose(1, 2), y).item()
+    # How many non padding tokens
+    total_tokens += (y != IGNORE_INDEX).sum().item()
+    loss = total_loss / total_tokens
     log.info(f"Test Loss: {loss}")
     n_params = sum(p.numel() for p in model.parameters())
     log.info(f"Parameters: {n_params:,}")
@@ -78,25 +82,24 @@ def main(cfg: DictConfig):
     test_loss_batches = []
     model.eval()
 
-    for inputs, targets, _, _ in test_loader:        
-            
-        inputs, targets = inputs.to(device), targets.to(device)
+    total_loss, total_tokens = 0.0, 0
+    with torch.no_grad():
+        for inputs, targets, _, _ in test_loader:
 
-        # Forward pass.
-        output = model(inputs)
+            # Inputs and targets to device
+            inputs, targets = inputs.to(device), targets.to(device)
 
-        # Compute loss.
-        loss = loss_fn(output.transpose(1,2), targets)
+            # Outputs out of the model
+            output = model(inputs)
 
-        test_loss_batches.append(loss.item())
+            # Summing up all the losses summed up
+            total_loss += loss_fn_sum(output.transpose(1, 2), targets).item()
 
-    test_loss = np.mean(test_loss_batches)
+            # How many non padding tokens
+            total_tokens += (targets != IGNORE_INDEX).sum().item()
 
-    print(test_loss)
-
-    
-
-    
+    test_loss = total_loss / total_tokens
+    log.info(f"Test loss: {test_loss:.4f}")
     
 if __name__ == "__main__":
     start = time.time()
