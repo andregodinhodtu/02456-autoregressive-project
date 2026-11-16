@@ -1,0 +1,19 @@
+defaults:
+  - model_architecture: ???
+  - model_name: ???
+
+data:
+  train: data/train.csv
+  val: data/val.csv
+  test: data/test.csv
+
+hydra:
+  run:
+    dir: results/train/runs/${hydra:runtime.choices.model}/${now:%Y-%m-%d_%H-%M-%S}
+  sweep:
+    dir: results/train/sweeps/${now:%Y-%m-%d_%H-%M-%S}
+    subdir: ${hydra.job.override_dirname}
+  job_logging:
+    formatters:
+      simple:
+        format: "%(message)s"

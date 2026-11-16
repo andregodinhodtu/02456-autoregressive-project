@@ -155,17 +155,6 @@ def main(cfg: DictConfig):
         json.dump({"steps": steps.tolist(), "train_loss": train_loss,
                    "val_loss": val_loss, "best_val_loss": best_val}, f, indent=2)
     
-    # Plot Loss
-    plt.figure()
-    plt.plot(steps, train_loss, "r", label="Training loss")
-    plt.plot(steps, val_loss, "b", label="Validation loss")
-    plt.legend()
-    plt.xlabel("Step")
-    plt.ylabel("Cross-entropy loss")
-    plt.savefig(f"{out_dir}/loss.png", dpi=150, bbox_inches="tight")
-    plt.close()
-    
-
 if __name__ == "__main__":
     start = time.time()
     log.info(f"Started:  {datetime.now():%Y-%m-%d %H:%M:%S}")
