@@ -3,6 +3,7 @@ defaults:
 
 trained_model:
   name: ???
+  vocab_size: 23
 
 generate:
   batch_size: 64
