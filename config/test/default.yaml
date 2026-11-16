@@ -1,5 +1,6 @@
 defaults:
   - _self_
+  - loss_fn: cross_entropy
 
 trained_model:
   name: ???

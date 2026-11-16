@@ -57,6 +57,45 @@ def main(cfg: DictConfig):
     model, train_cfg = load_trained_model(model_dir, vocab_size, device)
     log.info(model)
 
+    # Loss function definition
+    log.info("\n" +"-"*20 + "LOSS FUNCTION" + "-"*20 + "\n")
+    loss_fn = instantiate(cfg.loss_fn, ignore_index=IGNORE_INDEX)
+    log.info(f"{loss_fn}, ignoring index: {IGNORE_INDEX}")
+
+    # Shape check
+    log.info("\n" +"-"*20 + "SHAPE CHECK" + "-"*20 + "\n")
+    x, y, _, _ = next(iter(test_loader))
+    x, y = x.to(device), y.to(device)
+    logits = model(x)
+    log.info(f"Shape check x: {x.shape}, y: {y.shape}, output of the model (logits): {logits.shape}")
+    loss = loss_fn(logits.transpose(1,2), y)
+    log.info(f"Test Loss: {loss}")
+    n_params = sum(p.numel() for p in model.parameters())
+    log.info(f"Parameters: {n_params:,}")
+
+    log.info("\n" +"-"*20 + "TESTING" + "-"*20 + "\n")
+
+    test_loss_batches = []
+    model.eval()
+
+    for inputs, targets, _, _ in test_loader:        
+            
+        inputs, targets = inputs.to(device), targets.to(device)
+
+        # Forward pass.
+        output = model(inputs)
+
+        # Compute loss.
+        loss = loss_fn(output.transpose(1,2), targets)
+
+        test_loss_batches.append(loss.item())
+
+    test_loss = np.mean(test_loss_batches)
+
+    print(test_loss)
+
+    
+
     
     
 if __name__ == "__main__":
