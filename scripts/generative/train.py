@@ -19,7 +19,7 @@ from protgen.utils import set_seed
 
 log = logging.getLogger(__name__)
 
-@hydra.main(config_path="./../../config/training", config_name="default", version_base=None)
+@hydra.main(config_path="./../../config/train", config_name="default", version_base=None)
 def main(cfg: DictConfig):
     
     out_dir = HydraConfig.get().runtime.output_dir

@@ -1,0 +1,19 @@
+defaults:
+  - _self_
+
+trained_model:
+  name: ???
+
+data:
+  test: data/test.csv
+
+test:
+  batch_size: 64
+
+hydra:
+  run:
+    dir: results/test/runs/${trained_model.name}/${now:%Y-%m-%d_%H-%M-%S}
+  job_logging:
+    formatters:
+      simple:
+        format: "%(message)s"
