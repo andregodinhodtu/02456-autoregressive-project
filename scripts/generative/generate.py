@@ -52,22 +52,51 @@ def main(cfg: DictConfig):
     if not model_dir.exists():
         raise FileNotFoundError(f"No trained model at {model_dir}")
 
+    # Data loading
+    # Here only to get dynamic variables about the dataset: vocab_size, sequence length, id of the beginning of sequence token
+    log.info("-"*23 + "DATA" + "-"*23 + "\n")
+    test_set = ProteinDataset(cfg.data.test)
+    log.info(test_set)
+    test_loader = DataLoader(test_set, batch_size=cfg.test.batch_size, shuffle= False)
+    vocab_size = len(test_set.vocab)
+    log.info(f"Vocabulary size: {vocab_size}")
+
     # Import the model (depending on the config parameters used)
     log.info("\n" +"-"*23 + "MODEL" + "-"*23 + "\n")
-    model, train_cfg = load_trained_model(model_dir, vocab_size=cfg.trained_model.vocab_size) # check if it's coherent
+    model, train_cfg = load_trained_model(model_dir, vocab_size=vocab_size) 
     log.info(model)
 
 
     # Let's try to generate some sequences
     log.info("\n" +"-"*20 + "GENERATION" + "-"*20 + "\n")
-    max_seq_len = 129 # from training data
+
+    x, _, _, _ = next(iter(test_loader))
+    max_seq_len = x.shape[1]
+
     n_seq = cfg.generate.batch_size
-    bos_id = # from training data
+    log.info(f"Generating {n_seq} sequences of max length {max_seq_len}")
+    bos_id = test_set.vocab["<BOS>"]
+    log.info(f"Token used for beginning of sequence: {bos_id}")
     sequences = torch.full((n_seq, 1), fill_value=bos_id, dtype=torch.long, device=device)
     
     model.eval()
-    
-    for pred_round in (max_seq_len): #max_seq_len is basically 129, do we have to make it tunable?
+
+    with torch.no_grad():
+        for pred_round in range(max_seq_len -1): 
+            sequences = sequences.to(device)
+            outputs = model(sequences) 
+            # maybe we could also do outputs = model(sequences[:, -model.context, :])
+            # So that we will spare ressources (just providing the windonw for the next residues)
+
+            last_pos = outputs[:, -1, :]
+            probs = torch.nn.functional.softmax(last_pos, 1)
+            residues = torch.multinomial(probs, 1)
+
+            sequences = torch.cat((sequences, residues), 1)
+
+        sequences_to_plot = sequences[:10]
+        log.info(f"Example of generated seqeunces (still encoded): {sequences_to_plot}")
+
 
         
 
