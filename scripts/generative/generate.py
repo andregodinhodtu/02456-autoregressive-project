@@ -10,6 +10,7 @@ from datetime import datetime
 
 import torch
 import numpy as np
+import pandas as pd
 import matplotlib.pyplot as plt
 import json
 import os  
@@ -31,7 +32,7 @@ def load_trained_model(model_dir: Path, vocab_size, device: str = "cpu"):
     model.to(device).eval()
     return model, train_cfg
 
-@hydra.main(config_path="./../../config/generate", config_name="default", version_base=None)
+@hydra.main(config_path="./../../config/generative", config_name="default", version_base=None)
 def main(cfg: DictConfig):
 
     out_dir = HydraConfig.get().runtime.output_dir
@@ -55,10 +56,10 @@ def main(cfg: DictConfig):
     # Data loading
     # Here only to get dynamic variables about the dataset: vocab_size, sequence length, id of the beginning of sequence token
     log.info("-"*23 + "DATA" + "-"*23 + "\n")
-    test_set = ProteinDataset(cfg.data.test)
-    log.info(test_set)
-    test_loader = DataLoader(test_set, batch_size=cfg.test.batch_size, shuffle= False)
-    vocab_size = len(test_set.vocab)
+    train_set = ProteinDataset(cfg.data.train)
+    log.info(train_set)
+    train_loader = DataLoader(train_set, batch_size=cfg.generate.batch_size, shuffle= False)
+    vocab_size = len(train_set.vocab)
     log.info(f"Vocabulary size: {vocab_size}")
 
     # Import the model (depending on the config parameters used)
@@ -70,19 +71,21 @@ def main(cfg: DictConfig):
     # Let's try to generate some sequences
     log.info("\n" +"-"*20 + "GENERATION" + "-"*20 + "\n")
 
-    x, _, _, _ = next(iter(test_loader))
+    x, _, _, _ = next(iter(train_loader))
     max_seq_len = x.shape[1]
 
     n_seq = cfg.generate.batch_size
     log.info(f"Generating {n_seq} sequences of max length {max_seq_len}")
-    bos_id = test_set.vocab["<BOS>"]
+    bos_id = train_set.vocab["<BOS>"]
+    eos_id = train_set.vocab["<EOS>"]
     log.info(f"Token used for beginning of sequence: {bos_id}")
+    log.info(f"Token used for end of sequence: {eos_id}")
     sequences = torch.full((n_seq, 1), fill_value=bos_id, dtype=torch.long, device=device)
     
     model.eval()
 
     with torch.no_grad():
-        for pred_round in range(max_seq_len -1): 
+        for pred_round in range(max_seq_len -1): #idk if the EOS and BOS token should be included in the sequence length, the range can be adjusted
             sequences = sequences.to(device)
             outputs = model(sequences) 
             # maybe we could also do outputs = model(sequences[:, -model.context, :])
@@ -94,8 +97,40 @@ def main(cfg: DictConfig):
 
             sequences = torch.cat((sequences, residues), 1)
 
-        sequences_to_plot = sequences[:10]
-        log.info(f"Example of generated seqeunces (still encoded): {sequences_to_plot}")
+    # Suppressing all tokens after the first EOS 
+    decoded_sequences = []
+
+    for seq in sequences:
+        eos_positions = (seq == eos_id).nonzero(as_tuple=True)[0] # we're on a single sequence, so we need the first dimension of the tuple only
+        
+        if len(eos_positions) > 0:
+            seq_cropped = seq[:eos_positions[0]] #stop after the first EOS token encountered
+        else: #No EOS found after the max sequence length, we still conserve the sequence
+            seq_cropped = seq 
+        seq_decoded = train_set.decode(seq_cropped) 
+        decoded_sequences.append(seq_decoded)
+
+
+    log.info("\n" +"-"*20 + "DATA EXPORT" + "-"*20 + "\n")
+    df_decoded = pd.DataFrame({"sequence": decoded_sequences})
+    out_file = Path(f"results/sequences/{cfg.trained_model.name}_{n_seq}seq.csv") #we could redirect to another folder to keep the important outputs in the gitignore
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    df_decoded.to_csv(out_file, index=False)
+    log.info(f"{n_seq} decoded sequences have been written to {out_file}!"+ "\n")
+
+
+
+    # To take a look at how some sequences are predicted, before cropping and encoding them
+    # sequences_to_plot = sequences[:10]
+    # log.info(f"Example of generated sequences (still encoded):")
+    # for i, seq in enumerate(sequences_to_plot):
+    #     log.info(f"Seq {i}: {seq.tolist()}")
+
+    # To take a look at how some sequences are predicted, AFTER cropping and encoding them
+    # sequences_to_plot = decoded_sequences[:10]
+    # log.info(f"Example of generated sequences (decoded):")
+    # for i, seq in enumerate(sequences_to_plot):
+    #     log.info(f"Seq {i}: {seq}")
 
 
         
