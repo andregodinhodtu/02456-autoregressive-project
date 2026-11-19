@@ -94,8 +94,6 @@ class PositionWiseFeedForward(nn.Module):
         x = self.fc2(x)
         return x
 
-
-
 class DecoderLayer(nn.Module):
     
     """ Single Decoder Layer module"""

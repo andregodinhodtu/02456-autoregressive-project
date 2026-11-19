@@ -71,7 +71,7 @@ def main(cfg: DictConfig):
     total_loss, total_tokens = 0.0, 0
     total_loss += loss_fn_sum(logits.transpose(1, 2), y).item()
     # How many non padding tokens
-    total_tokens += (y != IGNORE_INDEX).sum().item()
+    total_tokens += (yg != IGNORE_INDEX).sum().item()
     loss = total_loss / total_tokens
     log.info(f"Test Loss: {loss}")
     n_params = sum(p.numel() for p in model.parameters())
