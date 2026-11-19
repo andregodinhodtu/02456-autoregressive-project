@@ -15,6 +15,10 @@ generate:
 hydra:
   run:
     dir: results/generative/runs/${trained_model.name}/${hydra.job.override_dirname}
+  job:
+    config:
+      override_dirname:
+        exclude_keys: [trained_model.name]
   job_logging:
     formatters:
       simple:

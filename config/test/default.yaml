@@ -13,7 +13,7 @@ test:
 
 hydra:
   run:
-    dir: results/test/runs/${trained_model.name}/${hydra.job.override_dirname}
+    dir: results/test/runs/${trained_model.name}
   job_logging:
     formatters:
       simple:

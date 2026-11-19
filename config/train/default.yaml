@@ -19,7 +19,12 @@ hydra:
   run:
     dir: results/train/runs/${hydra:runtime.choices.model}/${hydra.job.override_dirname}
   sweep:
-    dir: results/train/sweeps/${hydra.job.override_dirname}
+    dir: results/train/sweeps
+    subdir: ${hydra:runtime.choices.model}/${hydra.job.override_dirname}
+  job:
+    config:
+      override_dirname:
+        exclude_keys: [model]
   job_logging:
     formatters:
       simple:
