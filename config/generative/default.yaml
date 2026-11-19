@@ -14,7 +14,7 @@ generate:
 
 hydra:
   run:
-    dir: results/generative/runs/${trained_model.name}/${now:%Y-%m-%d_%H-%M-%S}
+    dir: results/generative/runs/${trained_model.name}/${hydra.job.override_dirname}
   job_logging:
     formatters:
       simple:

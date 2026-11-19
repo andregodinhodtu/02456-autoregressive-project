@@ -17,10 +17,9 @@ train:
 
 hydra:
   run:
-    dir: results/train/runs/${hydra:runtime.choices.model}/${now:%Y-%m-%d_%H-%M-%S}
+    dir: results/train/runs/${hydra:runtime.choices.model}/${hydra.job.override_dirname}
   sweep:
-    dir: results/train/sweeps/${now:%Y-%m-%d_%H-%M-%S}
-    subdir: ${hydra.job.override_dirname}
+    dir: results/train/sweeps/${hydra.job.override_dirname}
   job_logging:
     formatters:
       simple:
