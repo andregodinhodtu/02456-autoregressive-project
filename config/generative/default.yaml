@@ -4,6 +4,11 @@ defaults:
 trained_model:
   name: ???
 
+seed: 42
+
+data:
+  train: data/train.csv
+  
 generate:
   batch_size: 64
 
