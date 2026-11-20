@@ -13,7 +13,7 @@ data:
 train:
   batch_size: 64
   epochs: 10
-  val_every_step: 50
+  val_every_step: 20
 
 hydra:
   run:
