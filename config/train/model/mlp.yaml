@@ -6,3 +6,4 @@ stride: 1       # keep at 1: one prediction per position
 d_emb: 32       # embedding size per token
 d_hidden: 256   # hidden layer size
 pad_id: 0       # id of <PAD> in the vocab
+dropout: 0      # dropout let's try

@@ -7,4 +7,4 @@ ff_dim: 512 # Dimension of hidden layer of the Feed Forward network at the end o
 num_layers: 2 # Number of dense Layers
 max_seq_length: 129 # Number of the max size in the sequences
 pad_idx: 0 # padding index
-dropout: 0.1 # dropout frquency
+dropout: 0.1 # dropout frequency

@@ -8,7 +8,7 @@ class MLPLM(nn.Module):
     """
     Multi Layer Precepton, We need to describe this better!
     """
-    def __init__(self, vocab_size, context=3, stride = 1, d_emb=32, d_hidden=256, pad_id=0):
+    def __init__(self, vocab_size, context=3, stride = 1, d_emb=32, d_hidden=256, pad_id=0, dropout=0.0):
 
         # Init, not any init a super init
         super().__init__()
@@ -19,6 +19,9 @@ class MLPLM(nn.Module):
         # Stride for context on the sequence:
         self.stride_mlp = stride
 
+        # Dropout
+        self.emb_dropout = nn.Dropout(dropout)
+
         # Create the embeding layer where we look for it in a Lookup
         # Row for padding starts as all 0 so it is never updated! DECIDE
         self.emb = nn.Embedding(vocab_size, d_emb, padding_idx=pad_id)
@@ -27,6 +30,7 @@ class MLPLM(nn.Module):
         self.net = nn.Sequential(
             nn.Linear(context * d_emb, d_hidden),
             nn.Tanh(),
+            nn.Dropout(dropout),
             nn.Linear(d_hidden, vocab_size),
         )
 
@@ -61,4 +65,7 @@ class MLPLM(nn.Module):
         if debug: print(flat_embedings)
         if debug: print(f"Lenght of the sequence: {flat_embedings.shape}")
 
+        flat_embedings = self.emb_dropout(flat_embedings)
+
         return self.net(flat_embedings)
+

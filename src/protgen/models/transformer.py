@@ -11,9 +11,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-
-
-
 # adapted from https://docs.pytorch.org/tutorials/intermediate/scaled_dot_product_attention_tutorial.html#causal-self-attention
 class CausalMultiHeadSelfAttention(nn.Module):
     
