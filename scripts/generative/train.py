@@ -161,9 +161,9 @@ def main(cfg: DictConfig):
                         # How many real tokens
                         val_total_tokens += (val_targets != IGNORE_INDEX).sum().item()
 
-                    model.train()
+                model.train()
 
-                 val_loss.append(val_total_loss / val_total_tokens)
+                val_loss.append(val_total_loss / val_total_tokens)
 
                 log.info(f"Step {step:<5}   training loss: {train_loss[-1]:.4f}")
                 log.info(f"             validation loss: {val_loss[-1]:.4f}")
