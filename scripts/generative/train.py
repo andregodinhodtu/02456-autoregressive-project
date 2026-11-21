@@ -59,19 +59,40 @@ def main(cfg: DictConfig):
     optimizer = instantiate(cfg.optimizer, params=model.parameters())
     log.info(optimizer)
 
-    # Loss function definition
-    log.info("\n" +"-"*20 + "LOSS FUNCTION" + "-"*20 + "\n")
-    loss_fn = instantiate(cfg.loss_fn, ignore_index=IGNORE_INDEX)
+    # Loss functions
+    log.info("\n" + "-"*20 + "LOSS FUNCTION" + "-"*20 + "\n")
+    # mean, for backward() in training
+    loss_fn = instantiate(cfg.loss_fn, ignore_index=IGNORE_INDEX)           
+    # for exact per-token validation loss
+    loss_fn_sum = instantiate(cfg.loss_fn, ignore_index=IGNORE_INDEX, reduction="sum")
     log.info(f"{loss_fn}, ignoring index: {IGNORE_INDEX}")
 
-    # Shape check
-    log.info("\n" +"-"*20 + "SHAPE CHECK" + "-"*20 + "\n")
+    # Shape check (first batch only, untrained model)
+    log.info("\n" + "-"*20 + "SHAPE CHECK" + "-"*20 + "\n")
     x, y, _, _ = next(iter(train_loader))
     x, y = x.to(device), y.to(device)
-    logits = model(x)
-    log.info(f"Shape check x: {x.shape}, y: {y.shape}, output of the model (logits): {logits.shape}")
-    loss = loss_fn(logits.transpose(1,2), y)
-    log.info(f"Test Loss: {loss}")
+
+    with torch.no_grad():
+        
+        logits = model(x)
+        # batch_loss_mean = loss_fn(logits.transpose(1, 2), y).item()
+        batch_loss_sum = loss_fn_sum(logits.transpose(1, 2), y).item()
+
+    B, T = x.shape
+    log.info(f"x (inputs):      {tuple(x.shape)}  [batch, seq_len]")
+    log.info(f"y (targets):     {tuple(y.shape)}  [batch, seq_len]")
+    log.info(f"logits (output): {tuple(logits.shape)}  [batch, seq_len, vocab]")
+
+    n_real = (y != IGNORE_INDEX).sum().item()
+    log.info(f"Real (non-padding) targets in this batch: {n_real} of {y.numel()}")
+
+    # log.info(f"First batch, mean loss:              {batch_loss_mean:.4f}")
+    log.info(f"First batch loss (sum / real tokens): {batch_loss_sum / n_real:.4f}")
+    
+    # assert abs(batch_loss_mean - batch_loss_sum / n_real) < 1e-4, "sum/count does not match mean, check ignore_index"
+
+    log.info(f"Initial loss should be close to ln(vocab) = {np.log(vocab_size):.4f}")
+
     n_params = sum(p.numel() for p in model.parameters())
     log.info(f"Parameters: {n_params:,}")
 
@@ -99,6 +120,7 @@ def main(cfg: DictConfig):
             output = model(inputs)
 
             # Compute loss.
+            # Keep loss_fn with the mean here. The gradient step should be based on the average loss of the batch.
             loss = loss_fn(output.transpose(1,2), targets)
 
             train_loss_batches.append(loss.item())
@@ -118,25 +140,30 @@ def main(cfg: DictConfig):
 
                 train_loss.append(np.mean(train_loss_batches))
                 train_loss_batches = []
+                # A mean of batch means is fine here, because it's only used for the curve.
 
-                val_loss_batches = []
+                # Validation: exact per-token loss (sum / count)
+                val_total_loss, val_total_tokens = 0.0, 0
 
+                model.eval()
+                
                 with torch.no_grad():
                     
-                    model.eval()
-                    
-                    for inputs, targets, _, _ in val_loader:
+                    for val_inputs, val_targets, _, _ in val_loader:
                         
-                        inputs, targets = inputs.to(device), targets.to(device)
+                        val_inputs, val_targets = val_inputs.to(device), val_targets.to(device)
                         
-                        output = model(inputs)
+                        val_output = model(val_inputs)
                         
-                        loss = loss_fn(output.transpose(1,2), targets)
-                        val_loss_batches.append(loss.item())
+                        # Sum of the loss over all real (non-padding) tokens
+                        val_total_loss += loss_fn_sum(val_output.transpose(1, 2), val_targets).item()
+
+                        # How many real tokens
+                        val_total_tokens += (val_targets != IGNORE_INDEX).sum().item()
 
                     model.train()
 
-                val_loss.append(np.mean(val_loss_batches))
+                 val_loss.append(val_total_loss / val_total_tokens)
 
                 log.info(f"Step {step:<5}   training loss: {train_loss[-1]:.4f}")
                 log.info(f"             validation loss: {val_loss[-1]:.4f}")
