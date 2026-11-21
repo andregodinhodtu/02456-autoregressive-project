@@ -1,0 +1,20 @@
+model:
+  _target_: protgen.models.mlp.MLPLM
+  context: 3
+  stride: 1
+  d_emb: 32
+  d_hidden: 256
+  pad_id: 0
+optimizer:
+  _target_: torch.optim.Adam
+  lr: 0.001
+loss_fn:
+  _target_: torch.nn.CrossEntropyLoss
+seed: 42
+data:
+  train: data/train.csv
+  val: data/val.csv
+train:
+  batch_size: 64
+  epochs: 10
+  val_every_step: 50
