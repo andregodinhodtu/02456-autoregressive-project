@@ -22,4 +22,10 @@
 
 source hpc/env.sh
 
-uv run --group eval python eval/eval.py --samples results/sequences/mock_data.csv --fold   
+
+# MLP baseline: 256 generated sequences
+uv run --group eval python eval/eval.py --samples results/sequences/mlp/simple_mlp_baseline_256seq.csv --fold
+
+# Controls: 256 real test proteins and the same proteins shuffled
+uv run --group eval python eval/eval.py --samples results/sequences/control_real.csv --fold
+uv run --group eval python eval/eval.py --samples results/sequences/control_shuffled.csv --fold
