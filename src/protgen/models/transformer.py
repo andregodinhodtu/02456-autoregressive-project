@@ -173,7 +173,7 @@ class DecoderOnlyTransformer(nn.Module):
         # output projection to vocabulary
         self.output_proj = nn.Linear(embedding_dim, vocab_size)
 
-    def forward(self, x):
+    def forward(self, x, return_hidden_states=False):
         # x represents token indices
         batch_size, seq_length = x.shape 
         
@@ -204,6 +204,10 @@ class DecoderOnlyTransformer(nn.Module):
         # apply LayerNorm to the output
         x = self.final_ln(x)
 
+        # for what classifier needs
+        if return_hidden_states:
+            return x  # return before output projection, shape: (batch_size, seq_length, embedding_dim)
+        
         # output projection to vocabulary to get logits
         logits = self.output_proj(x) 
 
