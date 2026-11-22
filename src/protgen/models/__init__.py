@@ -1,3 +1,3 @@
 from .transformer import DecoderOnlyTransformer
-from .classifier import ClassifierLM
+from .classifier import ClassifierGuidedLM
 from .classifier import ClassifierHead
