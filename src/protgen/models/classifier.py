@@ -4,11 +4,11 @@
 
 
 from torch import nn
-from protgen.models import DecoderOnlyTransformer
+from protgen.models import DecoderOnlybase_model
 
 class ClassifierHead(nn.Module):
     
-    # input from transformer: (batch_size, seq_len, embed_dim) = hidden states
+    # input from base_model: (batch_size, seq_len, embed_dim) = hidden states
     # it takes onlz the last dimension: embed_dim
     # output: (batch_size, seq_len, num_classes) -> class logits per sample
     
@@ -35,34 +35,32 @@ class ClassifierHead(nn.Module):
     
     
 
-class ClassifierGuidedTransformer(nn.Module): 
+class ClassifierGuidedLM(nn.Module): 
     
-    def __init__(self, transformer, classifier_head):
+    def __init__(self, base_model, classifier_head):
         
-        """Initialise with a pretrained transformer and a 
-        classifier head. Transformer parameters are frozen.
+        """Initialise with a pretrained base_model and a 
+        classifier head. base_model parameters are frozen.
         
         Args:
-            transformer (nn.Module): Pretrained transformer model.
+            base_model (nn.Module): Pretrained base_model model.
             classifier_head (nn.Module): Classifier head.
         """
         
         super().__init__()
         
-        # change transformer settings to freeze it 
-        transformer.eval()  # set transformer to evaluation mode
-        for param in transformer.parameters():
-            param.requires_grad = False  # freeze transformer weights
+        # change base model settings to freeze it 
+        base_model.eval()  # set base_model to evaluation mode
+        for param in base_model.parameters():
+            param.requires_grad = False  # freeze base_model weights
             
-        self.transformer = transformer
+        self.base_model = base_model
         self.classifier_head = classifier_head
-        
-    # now i freeze transformer weights -> put it to eval at all times
-    # need to override / disable training mode for transformer completely ?
-
+    
+    
     def forward(self, x):
-        self.transformer.eval()  # make sure transformer is in evaluation mode again
-        hidden_states = self.transformer(x, return_hidden_states=True)
+        self.base_model.eval()  # make sure base_model is in evaluation mode again
+        hidden_states = self.base_model(x, return_hidden_states=True)
         output = self.classifier_head(hidden_states)
         return output
     
