@@ -3,7 +3,7 @@ _target_: protgen.models.transformer.DecoderOnlyTransformer   # the class Hydra 
 
 embedding_dim: 128 # Size of the embeding for each token
 num_heads: 4 # Number of attention heads for each dense layer
-ff_dim: ${eval:'4 * ${model.embedding_dim}'} #512 Dimension of hidden layer of the Feed Forward network at the end of each attention block
+ff_dim: null #512 Dimension of hidden layer of the Feed Forward network at the end of each attention block
 num_layers: 2 # Number of dense Layers
 max_seq_length: 129 # Number of the max size in the sequences
 pad_idx: 0 # padding index

@@ -147,7 +147,10 @@ class DecoderOnlyTransformer(nn.Module):
     def __init__(self, vocab_size, embedding_dim, num_heads, ff_dim, 
                  num_layers, max_seq_length, pad_idx=0, dropout=0.1):
         super().__init__()
-        
+
+        if ff_dim is None:
+            ff_dim = 4 * embedding_dim
+            
         self.embedding_dim = embedding_dim
         self.max_seq_length = max_seq_length
         self.pad_idx = pad_idx # for the padding mask that has to be made before embedding
