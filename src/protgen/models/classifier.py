@@ -4,7 +4,7 @@
 
 
 from torch import nn
-from protgen.models import DecoderOnlybase_model
+from protgen.models import DecoderOnlyTransformer 
 
 class ClassifierHead(nn.Module):
     
