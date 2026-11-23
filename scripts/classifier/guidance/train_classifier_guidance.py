@@ -6,15 +6,17 @@ from hydra.core.hydra_config import HydraConfig
 import logging
 import time
 from datetime import datetime
+from pathlib import Path
 
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import json
-import os  
+import os
 
 from torch.utils.data import DataLoader
 from protgen.data.make_data import ProteinDataset, IGNORE_INDEX
+from protgen.models.classifier_guidance_head import ClassifierGuidedLM
 from protgen.utils import set_seed
 
 log = logging.getLogger(__name__)
@@ -33,7 +35,14 @@ def load_trained_model(model_dir: Path, vocab_size, device: str = "cpu"):
     model.to(device).eval()
     return model, train_cfg
 
-_
+@hydra.main(config_path="./../../config/train_classifier_guidance_free", config_name="default", version_base=None)
+def main(cfg: DictConfig):
+    
+    # Model direction and output directories printed let's go
+    model_dir = Path(f"results/models/{cfg.trained_model.name}")
+    out_dir = HydraConfig.get().runtime.output_dir
+    log.info(f"Saving outputs to: {os.path.relpath(out_dir)}")
+
     # Flag if model does not exist
     if not model_dir.exists():
         raise FileNotFoundError(f"No trained model at {model_dir}")
