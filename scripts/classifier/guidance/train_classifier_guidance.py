@@ -85,11 +85,6 @@ def main(cfg: DictConfig):
     log.info("\n" + "-"*20 + "BASE MODEL (frozen)" + "-"*20 + "\n")
     base_model, base_cfg = load_trained_model(model_dir, vocab_size, device)
     log.info(base_model)
-    
-    # Load already created Transformer Model
-    log.info("\n" +"-"*23 + "MODEL" + "-"*23 + "\n")
-    model, train_cfg = load_trained_model(model_dir, vocab_size, device)
-    log.info(model)
 
     # Create the head: input = the transformer's hidden size, output = number of families
     log.info("\n" + "-"*20 + "CLASSIFIER HEAD" + "-"*20 + "\n")
@@ -100,6 +95,9 @@ def main(cfg: DictConfig):
 
     # Merge them: ClassifierGuidedLM freezes the base model
     model = ClassifierGuidedLM(base_model, head).to(device)
+    log.info("\n" + "-"*20 + "NEW MODEL" + "-"*20 + "\n")
+    log.info(f"New model, check it out below:")
+    log.info(model)
 
     # Parameters
     n_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
