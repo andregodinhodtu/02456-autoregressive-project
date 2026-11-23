@@ -147,7 +147,10 @@ class DecoderOnlyTransformer(nn.Module):
     def __init__(self, vocab_size, embedding_dim, num_heads, ff_dim, 
                  num_layers, max_seq_length, pad_idx=0, dropout=0.1):
         super().__init__()
-        
+
+        if ff_dim is None:
+            ff_dim = 4 * embedding_dim
+            
         self.embedding_dim = embedding_dim
         self.max_seq_length = max_seq_length
         self.pad_idx = pad_idx # for the padding mask that has to be made before embedding
@@ -208,7 +211,7 @@ class DecoderOnlyTransformer(nn.Module):
         if return_hidden_states:
             return x  # return before output projection, shape: (batch_size, seq_length, embedding_dim)
         
-        # output projection to vocabulary to get logits
+        # output projection to vocabulary to get logits 
         logits = self.output_proj(x) 
 
         return logits 

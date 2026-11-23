@@ -34,7 +34,7 @@ def load_trained_model(model_dir: Path, vocab_size, device: str = "cpu"):
     model.to(device).eval()
     return model, train_cfg
 
-@hydra.main(config_path="./../../config/test", config_name="default", version_base=None)
+@hydra.main(config_path="./../../config/test_generative", config_name="default", version_base=None)
 def main(cfg: DictConfig):
     
     model_dir = Path(f"results/models/{cfg.trained_model.name}")

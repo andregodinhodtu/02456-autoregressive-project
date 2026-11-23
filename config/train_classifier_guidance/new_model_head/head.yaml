@@ -1,0 +1,4 @@
+# ClassifierHead: hidden states (B, T, embedding_dim) -> family logits (B, T, 3)
+_target_: protgen.models.classifier_guidance_head.ClassifierHead
+num_layers: 1        # hidden layers: 0 = a single Linear (linear probe)
+hidden_units: 128
