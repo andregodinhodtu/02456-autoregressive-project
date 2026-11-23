@@ -11,7 +11,7 @@ class ClassifierHead(nn.Module):
     # it takes onlz the last dimension: embed_dim
     # output: (batch_size, seq_len, num_classes) -> class logits per sample
     
-    def __init__(self, input_features, output_features, hidden_units=128):
+    def __init__(self, input_features, output_features, num_layers, hidden_units=128):
         
         """Initializes all required hyperparameters for a multi-class classification model.
 
@@ -19,15 +19,27 @@ class ClassifierHead(nn.Module):
             input_features (int): Number of input features to the model.
             out_features (int): Number of output features of the model
               (how many classes there are).
+            num_layers (int): Number of HIDDEN layers in the model. 0 gives just 1 linear layer from input to output. 1 gives
+            1 hidden layer, GELU activation, and output layer, etc.
             hidden_units (int): Number of hidden units between layers, default 128.
+            
         """
         
         super().__init__()
-        self.linear_layer_stack = nn.Sequential(
-            nn.Linear(in_features=input_features, out_features=hidden_units),
-            nn.GELU(), 
-            nn.Linear(in_features=hidden_units, out_features=output_features)
-        )
+                
+        layers = []
+        
+        # hidden layers with GELU activation
+        for i in range(num_layers):
+            layers.append(nn.Linear(in_features=input_features if i == 0 else hidden_units, 
+                                    out_features=hidden_units))
+            layers.append(nn.GELU())
+         
+        # output layer   
+        layers.append(nn.Linear(in_features=input_features if num_layers == 0 else hidden_units, 
+                                out_features=output_features))
+        
+        self.linear_layer_stack = nn.Sequential(*layers)
     
     def forward(self, x):
         return self.linear_layer_stack(x)
