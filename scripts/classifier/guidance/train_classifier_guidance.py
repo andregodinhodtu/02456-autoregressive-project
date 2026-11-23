@@ -21,34 +21,43 @@ from protgen.utils import set_seed
 
 log = logging.getLogger(__name__)
 
-def load_trained_model(model_dir: Path, vocab_size, device: str = "cpu"):
+def load_trained_model(model_dir: Path, vocab_size, device="cpu"):
+    """Rebuild the trained language model from its Hydra config and load its weights."""
     
-    # 1. Read the training config saved by Hydra
     train_cfg = OmegaConf.load(model_dir / ".hydra" / "config.yaml")
-
-    # 2. Rebuild the architecture from that config
-    model = instantiate(train_cfg.model, vocab_size)
     
-    # 3. Load the weights
+    model = instantiate(train_cfg.model, vocab_size=vocab_size)
+    
     state = torch.load(model_dir / "model.pt", map_location=device)
     model.load_state_dict(state)
     model.to(device).eval()
     return model, train_cfg
 
-@hydra.main(config_path="./../../config/train_classifier_guidance_free", config_name="default", version_base=None)
+def family_targets(x, labels, pad_id):
+    """The family label at every real position, IGNORE_INDEX at padding. Shape (B, T).
+
+    The same label at every position teaches the head to predict the family from
+    every prefix x_<=i: the noisy predictor that guidance needs.
+    """
+    targets = labels.unsqueeze(1).expand_as(x).clone()
+    targets[x == pad_id] = IGNORE_INDEX
+    return targets
+
+@hydra.main(config_path="../../../config/train_classifier_guidance", config_name="default", version_base=None)
 def main(cfg: DictConfig):
     
-    # Model direction and output directories printed let's go
+    # Model directory and flag if it does not exist
     model_dir = Path(f"results/models/{cfg.trained_model.name}")
-    out_dir = HydraConfig.get().runtime.output_dir
-    log.info(f"Saving outputs to: {os.path.relpath(out_dir)}")
-
-    # Flag if model does not exist
     if not model_dir.exists():
         raise FileNotFoundError(f"No trained model at {model_dir}")
+
+    # Output directory
+    out_dir = HydraConfig.get().runtime.output_dir
+    log.info(f"Saving outputs to: {os.path.relpath(out_dir)}")
     
     log.info("-"*20 + "CONFIGURATION" + "-"*20 + "\n")
     log.info(OmegaConf.to_yaml(cfg))
+
 
     # Device to use gpu if available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -58,27 +67,44 @@ def main(cfg: DictConfig):
     # Default is 42 in the ~/config/default.yaml
     set_seed(cfg.seed)
 
-    # Data loading
-    # Not loading testing in here to keep testing and training separate
+    # Data
     log.info("-"*23 + "DATA" + "-"*23 + "\n")
     train_set = ProteinDataset(cfg.data.train)
-    log.info(train_set)
     val_set = ProteinDataset(cfg.data.val)
+    log.info(train_set)
     log.info(val_set)
-    train_loader = DataLoader(train_set, batch_size=cfg.train.batch_size, shuffle= True)
-    val_loader = DataLoader(val_set, batch_size=cfg.train.batch_size, shuffle= False)
+    train_loader = DataLoader(train_set, batch_size=cfg.train.batch_size, shuffle=True)
+    val_loader = DataLoader(val_set, batch_size=cfg.train.batch_size, shuffle=False)
 
+    vocab_size = len(train_set.vocab)
+    pad_id = train_set.vocab["<PAD>"]
+    n_classes = len(train_set.fam_to_idx)
+    log.info(f"Vocabulary size: {vocab_size}, classes: {train_set.fam_to_idx}")
+
+    # Loading the transformer model let's go! labubu
+    log.info("\n" + "-"*20 + "BASE MODEL (frozen)" + "-"*20 + "\n")
+    base_model, base_cfg = load_trained_model(model_dir, vocab_size, device)
+    log.info(base_model)
+    
     # Load already created Transformer Model
     log.info("\n" +"-"*23 + "MODEL" + "-"*23 + "\n")
     model, train_cfg = load_trained_model(model_dir, vocab_size, device)
     log.info(model)
 
-    # Classifier Head model
-    log.info("\n" +"-"*23 + "MODEL" + "-"*23 + "\n")
-    vocab_size = len(train_set.vocab)
-    log.info(f"Vocabulary size: {vocab_size}")
-    model = instantiate(cfg.model, vocab_size=vocab_size).to(device)
-    log.info(model)
+    # Create the head: input = the transformer's hidden size, output = number of families
+    log.info("\n" + "-"*20 + "CLASSIFIER HEAD" + "-"*20 + "\n")
+    head = instantiate(cfg.new_model_head,
+                       input_features=base_model.embedding_dim,
+                       output_features=n_classes)
+    log.info(head)
+
+    # Merge them: ClassifierGuidedLM freezes the base model
+    model = ClassifierGuidedLM(base_model, head).to(device)
+
+    # Parameters
+    n_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    n_frozen = sum(p.numel() for p in model.parameters() if not p.requires_grad)
+    log.info(f"Trainable (head): {n_trainable:,}   Frozen (transformer): {n_frozen:,}")
 
     # Create the Optimizer
     log.info("\n" +"-"*20 + "OPTIMIZER" + "-"*20 + "\n")
@@ -93,48 +119,50 @@ def main(cfg: DictConfig):
     loss_fn_sum = instantiate(cfg.loss_fn, ignore_index=IGNORE_INDEX, reduction="sum")
     log.info(f"{loss_fn}, ignoring index: {IGNORE_INDEX}")
 
-    # Shape check (first batch only, untrained model)
+    # Loss functions
+    log.info("\n" + "-"*20 + "LOSS FUNCTION" + "-"*20 + "\n")
+    # mean, for backward()
+    loss_fn = instantiate(cfg.loss_fn, ignore_index=IGNORE_INDEX)
+    # exact per-position validation loss
+    loss_fn_sum = instantiate(cfg.loss_fn, ignore_index=IGNORE_INDEX, reduction="sum")
+    log.info(f"{loss_fn}, ignoring index: {IGNORE_INDEX}")
+
+    # Shape check
     log.info("\n" + "-"*20 + "SHAPE CHECK" + "-"*20 + "\n")
-    x, y, _, _ = next(iter(train_loader))
-    x, y = x.to(device), y.to(device)
+    x, _, labels, _ = next(iter(train_loader))
+    x, labels = x.to(device), labels.to(device)
+    targets = family_targets(x, labels, pad_id)
 
     with torch.no_grad():
-        
         logits = model(x)
-        # batch_loss_mean = loss_fn(logits.transpose(1, 2), y).item()
-        batch_loss_sum = loss_fn_sum(logits.transpose(1, 2), y).item()
+        batch_loss_sum = loss_fn_sum(logits.transpose(1, 2), targets).item()
 
     B, T = x.shape
-    log.info(f"x (inputs):      {tuple(x.shape)}  [batch, seq_len]")
-    log.info(f"y (targets):     {tuple(y.shape)}  [batch, seq_len]")
-    log.info(f"logits (output): {tuple(logits.shape)}  [batch, seq_len, vocab]")
+    log.info(f"x (inputs):       {tuple(x.shape)}  [batch, seq_len]")
+    log.info(f"labels (family):  {tuple(labels.shape)}  [batch]")
+    log.info(f"targets:          {tuple(targets.shape)}  [batch, seq_len]")
+    log.info(f"logits (output):  {tuple(logits.shape)}  [batch, seq_len, classes]")
+    assert logits.shape == (B, T, n_classes), f"expected {(B, T, n_classes)}, got {tuple(logits.shape)}"
 
-    n_real = (y != IGNORE_INDEX).sum().item()
-    log.info(f"Real (non-padding) targets in this batch: {n_real} of {y.numel()}")
+    n_real = (targets != IGNORE_INDEX).sum().item()
+    log.info(f"Real positions in this batch: {n_real} of {targets.numel()}")
+    log.info(f"First batch loss: {batch_loss_sum / n_real:.4f} should be close to ln({n_classes}) = {np.log(n_classes):.4f}")
 
-    # log.info(f"First batch, mean loss:              {batch_loss_mean:.4f}")
-    log.info(f"First batch loss (sum / real tokens): {batch_loss_sum / n_real:.4f}")
-    
-    # assert abs(batch_loss_mean - batch_loss_sum / n_real) < 1e-4, "sum/count does not match mean, check ignore_index"
-
-    log.info(f"Initial loss should be close to ln(vocab) = {np.log(vocab_size):.4f}")
-
-    n_params = sum(p.numel() for p in model.parameters())
-    log.info(f"Parameters: {n_params:,}")
-
-    log.info("\n" +"-"*20 + "TRAINING" + "-"*20 + "\n")
+    # Training
+    log.info("\n" + "-"*20 + "TRAINING" + "-"*20 + "\n")
     epochs = cfg.train.epochs
     validation_every_steps = cfg.train.val_every_step
 
     step = 0
-    model.train()
+    # ClassifierGuidedLM.forward keeps the base model in eval mode
+    model.train()          
 
-    train_loss = []
-    val_loss = []
-    
+    train_loss, val_loss, val_acc, val_acc_full = [], [], [], []
     best_val = float("inf")
 
-    for epoch in range(epochs):
+    print("Hello World!")
+
+    """for epoch in range(epochs):
 
         train_loss_batches = []
 
@@ -216,7 +244,7 @@ def main(cfg: DictConfig):
     plt.xlabel("Step")
     plt.ylabel("Cross-entropy loss")
     plt.savefig(f"{out_dir}/loss.png", dpi=150, bbox_inches="tight")
-    plt.close()
+    plt.close()"""
     
 
 if __name__ == "__main__":
