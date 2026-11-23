@@ -1,0 +1,22 @@
+model:
+  _target_: protgen.models.transformer.DecoderOnlyTransformer
+  embedding_dim: 128
+  num_heads: 2
+  ff_dim: null
+  num_layers: 4
+  max_seq_length: 129
+  pad_idx: 0
+  dropout: 0.1
+optimizer:
+  _target_: torch.optim.Adam
+  lr: 0.0001
+loss_fn:
+  _target_: torch.nn.CrossEntropyLoss
+seed: 42
+data:
+  train: data/train.csv
+  val: data/val.csv
+train:
+  batch_size: 64
+  epochs: 50
+  val_every_step: 200

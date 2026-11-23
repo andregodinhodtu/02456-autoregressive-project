@@ -1,0 +1,8 @@
+- model=transformer
+- model.num_layers=4
+- model.embedding_dim=128
+- model.num_heads=2
+- optimizer=adam
+- optimizer.lr=0.0001
+- train.epochs=50
+- train.val_every_step=200
