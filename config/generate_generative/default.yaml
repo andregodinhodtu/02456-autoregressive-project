@@ -10,7 +10,7 @@ data:
   train: data/train.csv
   
 generate:
-  batch_size: 64
+  batch_size: 256
 
 hydra:
   run:
