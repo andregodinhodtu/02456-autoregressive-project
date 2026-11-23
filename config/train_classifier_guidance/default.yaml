@@ -1,0 +1,32 @@
+defaults:
+  - trained_model: ???
+  - new_model_head: ???
+  - optimizer: adam
+  - loss_fn: cross_entropy
+  - _self_
+
+seed: 42
+
+data:
+  train: data/train.csv
+  val: data/val.csv
+
+train:
+  batch_size: 64
+  epochs: 10
+  val_every_step: 20
+
+hydra:
+  run:
+    dir: results/train_classifier_guidance/runs/${hydra:runtime.choices.model}/${hydra.job.override_dirname}
+  sweep:
+    dir: results/train_classifier_guidance/sweeps
+    subdir: ${hydra:runtime.choices.model}/${hydra.job.override_dirname}
+  job:
+    config:
+      override_dirname:
+        exclude_keys: [model]
+  job_logging:
+    formatters:
+      simple:
+        format: "%(message)s"

@@ -32,7 +32,7 @@ def load_trained_model(model_dir: Path, vocab_size, device: str = "cpu"):
     model.to(device).eval()
     return model, train_cfg
 
-@hydra.main(config_path="./../../config/generative", config_name="default", version_base=None)
+@hydra.main(config_path="./../../config/generate_generative", config_name="default", version_base=None)
 def main(cfg: DictConfig):
 
     out_dir = HydraConfig.get().runtime.output_dir

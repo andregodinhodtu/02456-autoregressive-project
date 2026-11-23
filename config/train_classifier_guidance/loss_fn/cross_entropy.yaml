@@ -1,0 +1,2 @@
+# config/loss_fn/cross_entropy.yaml
+_target_: torch.nn.CrossEntropyLoss

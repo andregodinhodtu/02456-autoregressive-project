@@ -19,23 +19,42 @@ from protgen.utils import set_seed
 
 log = logging.getLogger(__name__)
 
-@hydra.main(config_path="./../../config/train", config_name="default", version_base=None)
+def load_trained_model(model_dir: Path, vocab_size, device: str = "cpu"):
+    
+    # 1. Read the training config saved by Hydra
+    train_cfg = OmegaConf.load(model_dir / ".hydra" / "config.yaml")
+
+    # 2. Rebuild the architecture from that config
+    model = instantiate(train_cfg.model, vocab_size)
+    
+    # 3. Load the weights
+    state = torch.load(model_dir / "model.pt", map_location=device)
+    model.load_state_dict(state)
+    model.to(device).eval()
+    return model, train_cfg
+
+@hydra.main(config_path="./../../config/train_classifier_guidance_free", config_name="default", version_base=None)
 def main(cfg: DictConfig):
     
+    # Model direction and output directories printed let's go
+    model_dir = Path(f"results/models/{cfg.trained_model.name}")
     out_dir = HydraConfig.get().runtime.output_dir
     log.info(f"Saving outputs to: {os.path.relpath(out_dir)}")
+
+    # Flag if model does not exist
+    if not model_dir.exists():
+        raise FileNotFoundError(f"No trained model at {model_dir}")
     
     log.info("-"*20 + "CONFIGURATION" + "-"*20 + "\n")
     log.info(OmegaConf.to_yaml(cfg))
+
+    # Device to use gpu if available
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    log.info(f"Device being used for the run: {device} \n")
     
     # Setting the seed for the run
     # Default is 42 in the ~/config/default.yaml
     set_seed(cfg.seed)
-
-    # Device to use gpu if available
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-    log.info(f"Device being used for the run: {device} \n")
 
     # Data loading
     # Not loading testing in here to keep testing and training separate
@@ -47,7 +66,12 @@ def main(cfg: DictConfig):
     train_loader = DataLoader(train_set, batch_size=cfg.train.batch_size, shuffle= True)
     val_loader = DataLoader(val_set, batch_size=cfg.train.batch_size, shuffle= False)
 
-    # Create the model
+    # Load already created Transformer Model
+    log.info("\n" +"-"*23 + "MODEL" + "-"*23 + "\n")
+    model, train_cfg = load_trained_model(model_dir, vocab_size, device)
+    log.info(model)
+
+    # Classifier Head model
     log.info("\n" +"-"*23 + "MODEL" + "-"*23 + "\n")
     vocab_size = len(train_set.vocab)
     log.info(f"Vocabulary size: {vocab_size}")
