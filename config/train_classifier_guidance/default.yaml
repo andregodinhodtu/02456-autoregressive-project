@@ -1,9 +1,11 @@
 defaults:
-  - trained_model: ???
-  - new_model_head: ???
+  - new_model_head: mlp
   - optimizer: adam
   - loss_fn: cross_entropy
   - _self_
+
+trained_model:
+  name: ???            # folder in results/models/, e.g. transformer/best
 
 seed: 42
 
@@ -14,18 +16,18 @@ data:
 train:
   batch_size: 64
   epochs: 10
-  val_every_step: 20
+  val_every_step: 50
 
 hydra:
   run:
-    dir: results/train_classifier_guidance/runs/${hydra:runtime.choices.model}/${hydra.job.override_dirname}
+    dir: results/train_classifier_guidance/runs/${trained_model.name}/${hydra.job.override_dirname}
   sweep:
     dir: results/train_classifier_guidance/sweeps
-    subdir: ${hydra:runtime.choices.model}/${hydra.job.override_dirname}
+    subdir: ${trained_model.name}/${hydra.job.override_dirname}
   job:
     config:
       override_dirname:
-        exclude_keys: [model]
+        exclude_keys: [trained_model.name]
   job_logging:
     formatters:
       simple:

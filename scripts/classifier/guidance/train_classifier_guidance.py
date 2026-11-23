@@ -33,14 +33,7 @@ def load_trained_model(model_dir: Path, vocab_size, device: str = "cpu"):
     model.to(device).eval()
     return model, train_cfg
 
-@hydra.main(config_path="./../../config/train_classifier_guidance_free", config_name="default", version_base=None)
-def main(cfg: DictConfig):
-    
-    # Model direction and output directories printed let's go
-    model_dir = Path(f"results/models/{cfg.trained_model.name}")
-    out_dir = HydraConfig.get().runtime.output_dir
-    log.info(f"Saving outputs to: {os.path.relpath(out_dir)}")
-
+_
     # Flag if model does not exist
     if not model_dir.exists():
         raise FileNotFoundError(f"No trained model at {model_dir}")
