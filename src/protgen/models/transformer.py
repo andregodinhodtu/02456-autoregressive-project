@@ -1,6 +1,4 @@
 import torch
-import pandas as pd
-from torch.utils.data import Dataset, DataLoader
 import torch.nn.functional as F
 import torch.nn as nn
 
@@ -176,6 +174,7 @@ class DecoderOnlyTransformer(nn.Module):
         # output projection to vocabulary
         self.output_proj = nn.Linear(embedding_dim, vocab_size)
 
+
     def forward(self, x, return_hidden_states=False):
         # x represents token indices
         batch_size, seq_length = x.shape 
@@ -215,3 +214,103 @@ class DecoderOnlyTransformer(nn.Module):
         logits = self.output_proj(x) 
 
         return logits 
+
+
+
+
+
+
+# code again adapted from the awesome https://www.intoai.pub/p/build-a-decoder-only-transformer
+class CFGTransformer(nn.Module):
+    
+    """Decoder-only Transformer model for autoregressive sequence generating with classifier-free guidance (CFG)"""
+    
+    def __init__(self, vocab_size, n_classes, embedding_dim, num_heads, ff_dim, 
+                 num_layers, max_seq_length, pad_idx=0, dropout=0.1):
+        super().__init__()
+
+        if ff_dim is None:
+            ff_dim = 4 * embedding_dim
+            
+        self.embedding_dim = embedding_dim
+        self.max_seq_length = max_seq_length
+        self.pad_idx = pad_idx # for the padding mask that has to be made before embedding
+        
+        # token embeddings
+        self.token_embedding = nn.Embedding(vocab_size, embedding_dim)
+
+        # positional embeddings
+        self.positional_embedding = nn.Embedding(max_seq_length, 
+        embedding_dim)
+        
+        # classifier-free guidance extra!!
+        # null class token is set after all other classes (last ix in embedding layer)
+        self.null_class = n_classes
+        self.class_embedding = nn.Embedding(n_classes + 1, embedding_dim)  # +1 for null token
+
+        # dropout
+        self.dropout = nn.Dropout(dropout)
+
+        # stack of Decoder blocks (DecoderLayer)
+        self.decoders = nn.ModuleList([
+            DecoderLayer(embedding_dim, ff_dim, num_heads, dropout) for _ in range(num_layers)
+        ])
+
+        # FINAL layernorm before output
+        self.final_ln = nn.LayerNorm(embedding_dim)
+
+        # output projection to vocabulary
+        self.output_proj = nn.Linear(embedding_dim, vocab_size)
+
+
+    def forward(self, x, class_labels=None, return_hidden_states=False):
+        # x represents token indices
+        batch_size, seq_length = x.shape 
+        
+        # padding mask for attention
+        padding_mask = (x != self.pad_idx).unsqueeze(1).unsqueeze(2)
+        # causal mask for attention
+        causal_mask = torch.tril(torch.ones(seq_length, seq_length, device= x.device)).unsqueeze(0).unsqueeze(1).bool()
+        # combine masks
+        attn_mask = causal_mask & padding_mask  # shape is now (batch_size, 1, seq_len, seq_len)
+        
+        # positional indices
+        positions = torch.arange(0, seq_length, device = x.device).unsqueeze(0) 
+        
+        # classes for CFG are 3 classes and null class
+        # size: batch_size, 1 -> 1 class per sequence
+        if class_labels is not None:
+            classes = class_labels.unsqueeze(1)  # shape: (batch_size, 1)
+        else:
+            # put all as the null class (3) -> same index as n_classes
+            classes = torch.full((batch_size, 1), self.null_class, device=x.device)  # shape: (batch_size, 1)
+        # NB: label dropout has to be done outside in the training loop to avoid leaking class info!!!!!
+
+        # token embedding
+        token_embedding = self.token_embedding(x)
+
+        # positional embedding
+        positional_embedding = self.positional_embedding(positions)
+        
+        # class embedding for CFG!!
+        class_embedding = self.class_embedding(classes)
+
+        # combine embeddings and add Dropout
+        x = self.dropout(token_embedding + positional_embedding + class_embedding)
+
+        # forward pass through decoder blocks
+        for decoder in self.decoders:
+          x = decoder(x, attn_mask=attn_mask)  # pass the attention mask to each decoder layer
+
+        # apply LayerNorm to the output
+        x = self.final_ln(x)
+
+        # for what classifier needs
+        if return_hidden_states:
+            return x  # return before output projection, shape: (batch_size, seq_length, embedding_dim)
+        
+        # output projection to vocabulary to get logits 
+        logits = self.output_proj(x) 
+
+        return logits 
+
