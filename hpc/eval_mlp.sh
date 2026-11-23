@@ -1,12 +1,12 @@
 #!/bin/sh
 #BSUB -q gpuv100
-#BSUB -J eval
+#BSUB -J eval_mlp
 #BSUB -n 4
 #BSUB -gpu "num=1:mode=exclusive_process"
 #BSUB -W 2:00
 #BSUB -R "rusage[mem=8GB]"
-#BSUB -o hpc/logs/eval.out
-#BSUB -e hpc/logs/eval.err
+#BSUB -o hpc/logs/eval_mlp_%J.out
+#BSUB -e hpc/logs/eval_mlp_%J.err
 
 # Score sample sets on a GPU, structures included:   bsub < hpc/eval.sh
 #
@@ -20,8 +20,9 @@
 ##BSUB -B
 ##BSUB -N
 
-source hpc/env.sh
-
+set -eu
+cd /dtu/blackhole/08/223976/02456-autoregressive-project
+source hpc/env.sh   # uv on the PATH, caches off the home quota
 
 # MLP baseline: 256 generated sequences
 uv run --group eval python eval/eval.py --samples results/sequences/mlp/simple_mlp_baseline_256seq.csv --fold

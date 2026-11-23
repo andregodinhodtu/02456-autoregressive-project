@@ -1,0 +1,8 @@
+- model=mlp
+- seed=3
+- optimizer=adam
+- optimizer.lr=0.0003
+- train.epochs=100
+- model.d_emb=64
+- model.d_hidden=512
+- model.dropout=0.1
