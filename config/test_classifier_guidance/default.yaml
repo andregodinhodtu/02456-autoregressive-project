@@ -18,7 +18,7 @@ test:
 
 hydra:
   run:
-    dir: results/test_classifier_guidance/runs/${trained_models.transformer}_${trained_models.head}
+    dir: results/test_classifier_guidance/runs/${trained_models.transformer}/${trained_models.head}
   job_logging:
     formatters:
       simple:
