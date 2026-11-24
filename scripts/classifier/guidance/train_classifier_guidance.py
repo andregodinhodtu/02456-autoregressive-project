@@ -1,3 +1,16 @@
+"""
+Example sweep:
+uv run python scripts/classifier/guidance/train_classifier_guidance.py -m \
+    trained_model.name=transformer/best_transformer \
+    head.num_layers=0,1,2 \
+    head.hidden_units=64,128,256 \
+    optimizer.lr=0.003,0.001,0.0003 \
+    seed=1,2,3
+Example run:
+uv run python scripts/classifier/guidance/train_classifier_guidance.py \
+    trained_model.name=transformer/best_transformer
+"""
+
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from hydra.utils import instantiate
@@ -11,6 +24,7 @@ from pathlib import Path
 import torch
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 import json
 import os
 
@@ -88,7 +102,7 @@ def main(cfg: DictConfig):
 
     # Create the head: input = the transformer's hidden size, output = number of families
     log.info("\n" + "-"*20 + "CLASSIFIER HEAD" + "-"*20 + "\n")
-    head = instantiate(cfg.new_model_head,
+    head = instantiate(cfg.head,
                        input_features=base_model.embedding_dim,
                        output_features=n_classes)
     log.info(head)
@@ -108,14 +122,6 @@ def main(cfg: DictConfig):
     log.info("\n" +"-"*20 + "OPTIMIZER" + "-"*20 + "\n")
     optimizer = instantiate(cfg.optimizer, params=model.parameters())
     log.info(optimizer)
-
-    # Loss functions
-    log.info("\n" + "-"*20 + "LOSS FUNCTION" + "-"*20 + "\n")
-    # mean, for backward() in training
-    loss_fn = instantiate(cfg.loss_fn, ignore_index=IGNORE_INDEX)           
-    # for exact per-token validation loss
-    loss_fn_sum = instantiate(cfg.loss_fn, ignore_index=IGNORE_INDEX, reduction="sum")
-    log.info(f"{loss_fn}, ignoring index: {IGNORE_INDEX}")
 
     # Loss functions
     log.info("\n" + "-"*20 + "LOSS FUNCTION" + "-"*20 + "\n")
@@ -158,32 +164,27 @@ def main(cfg: DictConfig):
     train_loss, val_loss, val_acc, val_acc_full = [], [], [], []
     best_val = float("inf")
 
-    print("Hello World!")
-
-    """for epoch in range(epochs):
+    for epoch in range(epochs):
 
         train_loss_batches = []
 
-        for inputs, targets, _, _ in train_loader:          
-            
-            inputs, targets = inputs.to(device), targets.to(device)
+        for inputs, _, labels, _ in train_loader:
 
-            # Forward pass.
+            inputs, labels = inputs.to(device), labels.to(device)
+
+            targets = family_targets(inputs, labels, pad_id)
+
+            # Forward pass: frozen transformer -> hidden states -> head
+            # (B, T, 3)
             output = model(inputs)
 
-            # Compute loss.
-            # Keep loss_fn with the mean here. The gradient step should be based on the average loss of the batch.
-            loss = loss_fn(output.transpose(1,2), targets)
+            # Loss over every real position, mean for backward()
+            loss = loss_fn(output.transpose(1, 2), targets)
 
             train_loss_batches.append(loss.item())
 
-            # Clean up gradients from the model.
             optimizer.zero_grad()
-
-            # Compute gradients based on the loss from the current batch (backpropagation).
             loss.backward()
-
-            # Take one optimizer step using the gradients computed in the previous step.
             optimizer.step()
 
             step += 1
@@ -192,58 +193,163 @@ def main(cfg: DictConfig):
 
                 train_loss.append(np.mean(train_loss_batches))
                 train_loss_batches = []
-                # A mean of batch means is fine here, because it's only used for the curve.
 
-                # Validation: exact per-token loss (sum / count)
-                val_total_loss, val_total_tokens = 0.0, 0
+                # Validation: exact per-position loss, plus two accuracies
+                val_total_loss, val_total_pos, val_correct = 0.0, 0, 0
+                full_correct, full_total = 0, 0
 
                 model.eval()
-                
+
                 with torch.no_grad():
-                    
-                    for val_inputs, val_targets, _, _ in val_loader:
-                        
-                        val_inputs, val_targets = val_inputs.to(device), val_targets.to(device)
-                        
+
+                    for val_inputs, _, val_labels, val_lengths in val_loader:
+
+                        val_inputs, val_labels = val_inputs.to(device), val_labels.to(device)
+                        val_targets = family_targets(val_inputs, val_labels, pad_id)
+
                         val_output = model(val_inputs)
-                        
-                        # Sum of the loss over all real (non-padding) tokens
+
+                        # Sum of the loss over all real positions
                         val_total_loss += loss_fn_sum(val_output.transpose(1, 2), val_targets).item()
 
-                        # How many real tokens
-                        val_total_tokens += (val_targets != IGNORE_INDEX).sum().item()
+                        # Accuracy over all prefix lengths (the noisy predictor)
+                        mask = val_targets != IGNORE_INDEX
+                        preds = val_output.argmax(dim=-1)
+                        val_correct += (preds[mask] == val_targets[mask]).sum().item()
+                        val_total_pos += mask.sum().item()
 
+                        # Accuracy on the complete sequence: the last real position, <EOS>
+                        last = (val_lengths + 1).to(device)
+                        last_preds = preds[torch.arange(len(last), device=device), last]
+                        full_correct += (last_preds == val_labels).sum().item()
+                        full_total += len(last)
+                
                 model.train()
-
-                val_loss.append(val_total_loss / val_total_tokens)
+                
+                val_loss.append(val_total_loss / val_total_pos)
+                val_acc.append(val_correct / val_total_pos)
+                val_acc_full.append(full_correct / full_total)
 
                 log.info(f"Step {step:<5}   training loss: {train_loss[-1]:.4f}")
-                log.info(f"             validation loss: {val_loss[-1]:.4f}")
+                log.info(f"             validation loss: {val_loss[-1]:.4f}   "
+                         f"acc (all prefixes): {val_acc[-1]:.3f}   acc (full seq): {val_acc_full[-1]:.3f}")
 
                 if val_loss[-1] < best_val:
                     best_val = val_loss[-1]
-                    torch.save(model.state_dict(), f"{out_dir}/model.pt")
-                    log.info(f"  new best val loss {best_val:.4f}, model saved")
+                    
+                    # Only the head: the transformer is unchanged in results/models/<name>
+                    torch.save(model.classifier_head.state_dict(), f"{out_dir}/head.pt")
+                    log.info(f"  new best val loss {best_val:.4f}, head saved")
 
-    # Outputs
-    
+    # Training curves
     steps = np.arange(1, len(train_loss) + 1) * validation_every_steps
-    
-    # Output Loss
+
     with open(f"{out_dir}/metrics.json", "w") as f:
-        json.dump({"steps": steps.tolist(), "train_loss": train_loss,
-                   "val_loss": val_loss, "best_val_loss": best_val}, f, indent=2)
+        json.dump({"steps": steps.tolist(), "train_loss": train_loss, "val_loss": val_loss,
+                   "val_acc": val_acc, "val_acc_full": val_acc_full,
+                   "best_val_loss": best_val}, f, indent=2)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 4))
+    ax1.plot(steps, train_loss, "r", label="Training loss")
+    ax1.plot(steps, val_loss, "b", label="Validation loss")
+    ax1.set_xlabel("Step"); ax1.set_ylabel("Cross-entropy loss"); ax1.legend()
+    ax2.plot(steps, val_acc, "b", label="Val acc (all prefixes)")
+    ax2.plot(steps, val_acc_full, "g", label="Val acc (full sequence)")
+    ax2.set_xlabel("Step"); ax2.set_ylabel("Accuracy"); ax2.legend()
+    fig.savefig(f"{out_dir}/loss.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
+
+    # Per-position diagnostics on the best head
+    log.info("\n" + "-"*20 + "VALIDATION BY POSITION" + "-"*20 + "\n")
+    model.classifier_head.load_state_dict(torch.load(f"{out_dir}/head.pt", map_location=device))
+    model.eval()
+
+    n_pos        = train_set.max_length
     
-    # Plot Loss
-    plt.figure()
-    plt.plot(steps, train_loss, "r", label="Training loss")
-    plt.plot(steps, val_loss, "b", label="Validation loss")
-    plt.legend()
-    plt.xlabel("Step")
-    plt.ylabel("Cross-entropy loss")
-    plt.savefig(f"{out_dir}/loss.png", dpi=150, bbox_inches="tight")
-    plt.close()"""
-    
+    pos_count    = torch.zeros(n_pos)
+    # mean probability per family
+    pos_prob_sum = torch.zeros(n_pos, n_classes)
+    # mean of the highest probability
+    pos_conf_sum = torch.zeros(n_pos)
+    # accuracy
+    pos_correct  = torch.zeros(n_pos)
+
+    with torch.no_grad():
+
+        for val_inputs, _, val_labels, _ in val_loader:
+
+            val_inputs, val_labels = val_inputs.to(device), val_labels.to(device)
+            val_targets = family_targets(val_inputs, val_labels, pad_id)
+
+            # (Batch, Tokens, Class)
+            probs = model(val_inputs).softmax(dim=-1)
+
+            # .max returns both the highest probability and the class it belongs to
+            conf, preds = probs.max(dim=-1)
+
+            # Real positions only, flattened: padding never enters the statistics
+            b, t  = (val_targets != IGNORE_INDEX).nonzero(as_tuple=True)
+            t_cpu = t.cpu()
+
+            pos_count.index_add_(0, t_cpu, torch.ones(len(t_cpu)))
+            pos_prob_sum.index_add_(0, t_cpu, probs[b, t].float().cpu())
+            pos_conf_sum.index_add_(0, t_cpu, conf[b, t].float().cpu())
+            pos_correct.index_add_(0, t_cpu, (preds[b, t] == val_targets[b, t]).float().cpu())
+
+    model.train()
+
+    keep = pos_count > 0
+    n    = pos_count[keep]
+
+    by_pos = pd.DataFrame({
+        "position":   torch.arange(n_pos)[keep].numpy(),
+        "n":          n.numpy(),
+        "accuracy":   (pos_correct[keep] / n).numpy(),
+        "confidence": (pos_conf_sum[keep] / n).numpy(),
+    })
+    for name, c in train_set.fam_to_idx.items():
+        by_pos[f"p_{name}"] = (pos_prob_sum[keep, c] / n).numpy()
+
+    by_pos.to_csv(f"{out_dir}/val_by_position.csv", index=False)
+    log.info("\n" + by_pos.head(10).to_string(index=False, float_format="%.4f"))
+
+    chance = 1 / n_classes
+
+    # Cut the x-axis where too few sequences are left to mean anything
+    enough = by_pos["n"] >= 0.1 * by_pos["n"].max()
+    x_max  = by_pos.loc[enough, "position"].max()
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.5), sharex=True, sharey=True)
+
+    # Left: where the probability mass goes, family by family
+    for name in train_set.fam_to_idx:
+        ax1.plot(by_pos["position"], by_pos[f"p_{name}"], lw=1.8, label=name)
+    ax1.axhline(chance, ls=":", c="grey", lw=1)
+    ax1.set_title("Mean predicted probability per family")
+    ax1.set_xlabel("Position (tokens seen - 1)")
+    ax1.set_ylabel("Probability")
+    ax1.legend(title="Family", frameon=False)
+
+    # Right: how sure it is, against how often it is right
+    ax2.plot(by_pos["position"], by_pos["confidence"], "k", lw=1.8, label="Confidence (mean max prob)")
+    ax2.plot(by_pos["position"], by_pos["accuracy"], "g", lw=1.8, label="Accuracy")
+    ax2.axhline(chance, ls=":", c="grey", lw=1, label=f"Chance ({chance:.2f})")
+    ax2.fill_between(by_pos["position"], by_pos["confidence"], by_pos["accuracy"],
+                     color="grey", alpha=0.15)
+    ax2.set_title("Confidence vs accuracy")
+    ax2.set_xlabel("Position (tokens seen - 1)")
+    ax2.legend(frameon=False)
+
+    for ax in (ax1, ax2):
+        ax.set_xlim(0, x_max)
+        ax.set_ylim(0, 1.02)
+        ax.grid(alpha=0.25, lw=0.5)
+        ax.spines[["top", "right"]].set_visible(False)
+
+    fig.suptitle(f"Family prediction along the sequence  (n = {int(by_pos['n'].iloc[0])} val sequences)")
+    fig.tight_layout()
+    fig.savefig(f"{out_dir}/val_by_position.png", dpi=150, bbox_inches="tight")
+    plt.close(fig)
 
 if __name__ == "__main__":
     start = time.time()

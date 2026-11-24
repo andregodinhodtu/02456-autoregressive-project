@@ -1,0 +1,25 @@
+defaults:
+  - _self_
+  - loss_fn: cross_entropy
+
+seed: 42
+
+trained_models:
+  # the base model run, e.g. test_transformer
+  transformer: ???  
+  # the head run under it, e.g. head
+  head: ???
+
+data:
+  test: data/test.csv
+
+test:
+  batch_size: 64
+
+hydra:
+  run:
+    dir: results/test_classifier_guidance/runs/${trained_models.transformer}_${trained_models.head}
+  job_logging:
+    formatters:
+      simple:
+        format: "%(message)s"

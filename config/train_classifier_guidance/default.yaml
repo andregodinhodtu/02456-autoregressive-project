@@ -1,5 +1,5 @@
 defaults:
-  - new_model_head: mlp
+  - head: head_ffnn
   - optimizer: adam
   - loss_fn: cross_entropy
   - _self_
@@ -20,15 +20,16 @@ train:
 
 hydra:
   run:
-    dir: results/train_classifier_guidance/runs/${trained_model.name}/${hydra.job.override_dirname}
+    dir: results/train_classifier_guidance/runs/${trained_model.name}_${hydra:runtime.choices.head}_${hydra.job.override_dirname}
   sweep:
     dir: results/train_classifier_guidance/sweeps
-    subdir: ${trained_model.name}/${hydra.job.override_dirname}
+    subdir: ${trained_model.name}_${hydra:runtime.choices.head}_${hydra.job.override_dirname}
   job:
     config:
       override_dirname:
-        exclude_keys: [trained_model.name]
+        exclude_keys: [trained_model.name, trained_model.group, head]
   job_logging:
     formatters:
       simple:
         format: "%(message)s"
+

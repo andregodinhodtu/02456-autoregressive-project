@@ -44,8 +44,17 @@ def main(cfg: DictConfig):
     if not model_dir.exists():
         raise FileNotFoundError(f"No trained model at {model_dir}")
 
+    log.info("-"*20 + "CONFIGURATION" + "-"*20 + "\n")
+    log.info(OmegaConf.to_yaml(cfg))
+    
+    # Setting the seed for the run
+    # Default is 42 in the ~/config/default.yaml
+    set_seed(cfg.seed)
+
     # Device to use gpu if available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+    log.info(f"Device being used for the run: {device} \n")
 
     # Data loading
     # Loading Testing only

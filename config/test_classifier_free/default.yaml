@@ -1,0 +1,20 @@
+defaults:
+  - _self_
+  - loss_fn: cross_entropy
+
+trained_model:
+  name: ???
+
+data:
+  test: data/test.csv
+
+test:
+  batch_size: 64
+
+hydra:
+  run:
+    dir: results/test/runs/${trained_model.name}
+  job_logging:
+    formatters:
+      simple:
+        format: "%(message)s"

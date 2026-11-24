@@ -1,8 +1,7 @@
 # sources: 
 # https://perso.esiee.fr/~chierchg/deep-learning/tutorials/transfer/transfer-3.html
 # https://www.learnpytorch.io/02_pytorch_classification/#8-putting-things-together-by-building-a-multi-class-pytorch-model
-
-
+import torch
 from torch import nn
 
 class ClassifierHead(nn.Module):
@@ -69,11 +68,15 @@ class ClassifierGuidedLM(nn.Module):
         self.classifier_head = classifier_head
     
     
+    def train(self, mode=True):
+        super().train(mode)
+        self.base_model.eval()
+        return self
+
     def forward(self, x):
-        self.base_model.eval()  # make sure base_model is in evaluation mode again
-        hidden_states = self.base_model(x, return_hidden_states=True)
-        output = self.classifier_head(hidden_states)
-        return output
+        with torch.no_grad():
+            hidden_states = self.base_model(x, return_hidden_states=True)
+        return self.classifier_head(hidden_states)
     
  
 
