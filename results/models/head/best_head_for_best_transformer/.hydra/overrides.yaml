@@ -1,0 +1,7 @@
+- trained_model.name=transformer/best_transformer
+- head.num_layers=2
+- head.hidden_units=256
+- optimizer=adam
+- optimizer.lr=0.003
+- train.epochs=20
+- seed=3

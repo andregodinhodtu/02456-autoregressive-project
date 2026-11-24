@@ -1,0 +1,19 @@
+head:
+  _target_: protgen.models.classifier_guidance_head.ClassifierHead
+  num_layers: 2
+  hidden_units: 256
+optimizer:
+  _target_: torch.optim.Adam
+  lr: 0.003
+loss_fn:
+  _target_: torch.nn.CrossEntropyLoss
+trained_model:
+  name: transformer/best_transformer
+seed: 3
+data:
+  train: data/train.csv
+  val: data/val.csv
+train:
+  batch_size: 64
+  epochs: 20
+  val_every_step: 50
