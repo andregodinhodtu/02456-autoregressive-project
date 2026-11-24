@@ -17,9 +17,10 @@ class ClassifierHead(nn.Module):
         Args:
             input_features (int): Number of input features to the model.
             out_features (int): Number of output features of the model
-              (how many classes there are).
-            num_layers (int): Number of HIDDEN layers in the model. 0 gives just 1 linear layer from input to output. 1 gives
-            1 hidden layer, GELU activation, and output layer, etc.
+                (how many classes there are).
+            num_layers (int): Number of HIDDEN layers in the model. 
+                0 gives just 1 linear layer from input to output. 1 gives
+                1 hidden layer, GELU activation, and output layer, etc.
             hidden_units (int): Number of hidden units between layers, default 128.
             
         """
