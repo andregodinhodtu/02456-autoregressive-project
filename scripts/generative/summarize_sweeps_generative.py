@@ -1,7 +1,7 @@
 """Collect the best validation loss of every run in a sweep folder into one table.
 
 Usage:
-    uv run python scripts/generative/summarize_sweeps.py results/train/sweeps/mlp
+    uv run python scripts/generative/summarize_sweeps_classifier_guidance.py results/train/sweeps/mlp
 """
 import argparse
 import json
