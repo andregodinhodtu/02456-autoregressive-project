@@ -1,0 +1,9 @@
+seed: 42
+trained_model:
+  name: mlp/simple_mlp_baseline
+data:
+  test: data/test.csv
+test:
+  batch_size: 64
+loss_fn:
+  _target_: torch.nn.CrossEntropyLoss
