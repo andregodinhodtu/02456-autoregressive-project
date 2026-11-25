@@ -1,0 +1,10 @@
+seed: 42
+trained_models:
+  transformer: transformer/best_transformer
+  head: head/best_head_for_best_transformer
+data:
+  test: data/test.csv
+test:
+  batch_size: 64
+loss_fn:
+  _target_: torch.nn.CrossEntropyLoss

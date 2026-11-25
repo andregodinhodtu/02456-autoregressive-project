@@ -247,3 +247,6 @@ tests/
 
 .vscode/
 
+# Test results are small (a log, metrics.json, a CSV, a PNG) and worth having in the repo
+!results/test/runs/
+!results/test_classifier_guidance/runs/

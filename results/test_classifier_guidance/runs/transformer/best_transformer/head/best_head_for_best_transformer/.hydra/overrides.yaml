@@ -1,0 +1,2 @@
+- trained_models.transformer=transformer/best_transformer
+- trained_models.head=head/best_head_for_best_transformer

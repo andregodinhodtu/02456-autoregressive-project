@@ -1,0 +1,9 @@
+{
+  "test_loss": 0.12389642701631658,
+  "test_loss_batches": 0.1241460123565048,
+  "test_acc": 0.9428192940076365,
+  "test_acc_full": 0.9920039980009995,
+  "n_test": 2001,
+  "transformer": "transformer/best_transformer",
+  "head": "head/best_head_for_best_transformer"
+}
