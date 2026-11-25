@@ -225,11 +225,10 @@ __marimo__/
 # inside, so each level has to be re-included before the files can be.
 results/*
 !results/sequences/
-results/sequences/*
-!results/sequences/*.csv
 !results/models/
 !results/models/README.md
 !results/test/
+!results/test_classifier_guidance/
 
 # Job logs, but hpc/logs/ itself is kept: LSF opens a job's .out/.err before the script runs, so a
 # missing directory fails the job rather than being created by it, and it has to survive a clone.
@@ -247,3 +246,4 @@ tests/
 .DS_Store
 
 .vscode/
+
