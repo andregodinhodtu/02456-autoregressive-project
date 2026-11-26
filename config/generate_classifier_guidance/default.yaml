@@ -3,7 +3,7 @@ defaults:
 
 trained_models:
   # e.g. best_transformer
-  transformer: ??? 
+  transformer: ???
   # e.g. head_ffnn
   head: ???
 
@@ -20,6 +20,7 @@ generate:
   family: null
   # lambda
   guidance_scale: 1.0
+  temperature: 1.0
 
 hydra:
   run:
@@ -34,4 +35,4 @@ hydra:
   job_logging:
     formatters:
       simple:
-        format: "%(message)s"
+        format: "%(message)s"ß
