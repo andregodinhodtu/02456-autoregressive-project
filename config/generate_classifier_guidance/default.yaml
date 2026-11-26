@@ -20,11 +20,13 @@ generate:
   family: null
   # lambda
   guidance_scale: 1.0
-  temperature: 1.0
 
 hydra:
   run:
     dir: results/generate_classifier_guidance/runs/${trained_models.transformer}/${trained_models.head}/${hydra.job.override_dirname}
+  sweep:
+    dir: results/generate_classifier_guidance/sweeps
+    subdir: ${trained_models.transformer}/${trained_models.head}/${hydra.job.override_dirname}
   job:
     config:
       override_dirname:
