@@ -1,0 +1,35 @@
+defaults:
+  - _self_
+
+trained_models:
+  # e.g. best_transformer
+  transformer: ??? 
+  # e.g. head_ffnn
+  head: ???
+
+seed: 42
+
+data:
+  # for the vocab and max_length
+  train: data/train.csv
+
+generate:
+  n_seq: 256
+  batch_size: 256
+  # null = unguided; set to AcyP, HPr or HU to steer
+  family: null
+  # lambda
+  guidance_scale: 1.0
+  temperature: 1.0
+
+hydra:
+  run:
+    dir: results/generate_classifier_guidance/runs/${trained_models.transformer}/${trained_models.head}/${hydra.job.override_dirname}
+  job:
+    config:
+      override_dirname:
+        exclude_keys: [trained_models.transformer, trained_models.head]
+  job_logging:
+    formatters:
+      simple:
+        format: "%(message)s"

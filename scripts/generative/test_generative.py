@@ -1,3 +1,9 @@
+"""
+Example:
+uv run python scripts/generative/test_generative.py trained_model.name=transformer/best_transformer
+uv run python scripts/generative/test_generative.py trained_model.name=mlp/simple_mlp_baseline
+"""
+
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from hydra.utils import instantiate

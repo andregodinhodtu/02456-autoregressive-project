@@ -85,7 +85,6 @@ def main(cfg: DictConfig):
     log.info("-"*20 + "CONFIGURATION" + "-"*20 + "\n")
     log.info(OmegaConf.to_yaml(cfg))
 
-
     # Device to use gpu if available
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     log.info(f"Device being used for the run: {device} \n")
