@@ -1,5 +1,5 @@
 # config/model/transformer.yaml
-_target_: protgen.models.transformer.DecoderOnlyTransformer   # the class Hydra builds
+_target_: protgen.models.transformer.CFGTransformer   # the class Hydra builds
 
 embedding_dim: 128 # Size of the embeding for each token
 num_heads: 4 # Number of attention heads for each dense layer

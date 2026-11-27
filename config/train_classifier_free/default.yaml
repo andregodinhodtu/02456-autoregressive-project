@@ -15,12 +15,13 @@ train:
   batch_size: 64
   epochs: 10
   val_every_step: 20
+  label_dropout: 0.25
 
 hydra:
   run:
-    dir: results/train_classifier_guidance/runs/${hydra:runtime.choices.model}/${hydra.job.override_dirname}
+    dir: results/train_classifier_free/runs/${hydra:runtime.choices.model}/${hydra.job.override_dirname}
   sweep:
-    dir: results/train_classifier_guidance/sweeps
+    dir: results/train_classifier_free/sweeps
     subdir: ${hydra:runtime.choices.model}/${hydra.job.override_dirname}
   job:
     config:
